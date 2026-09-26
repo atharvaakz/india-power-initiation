@@ -3,8 +3,6 @@
 All numbers are pulled from the model at build time, so text and tables never
 drift from the workbook. Narrative judgements live in NARRATIVE below.
 """
-from datetime import date
-
 import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -52,6 +50,7 @@ def narrative(t: str) -> dict:
     hist, mkt = load(t)
     b = hist.loc[BASE_FY]
     nd = (fc.borrowings + fc.revolver - fc.cash) / fc.ebitda
+    cp = pd.read_csv(PROCESSED / "comps.csv", index_col=0)
     g27 = fc.pat_attr.iloc[0] / b.net_profit - 1
     cagr = (fc.ebitda.iloc[-1] / b.operating_profit) ** (1 / len(fc)) - 1
     if t == "NTPC":
@@ -68,7 +67,7 @@ def narrative(t: str) -> dict:
                 f"from Rs {COMPANIES[t]['regeq0']:,} cr to Rs {fc.regulated_equity.iloc[-1]:,.0f} cr by FY36.",
                 f"<b>FY27 profit falls on tax, not operations.</b> FY26 net profit (Rs {b.net_profit:,.0f} cr) included a "
                 f"tax credit (reported effective rate -12%, Screener). At a normalised 25% we forecast Rs {fc.pat_attr.iloc[0]:,.0f} cr attributable in "
-                f"FY27 ({g27:+.0%}; consensus -7.5%, Trendlyne), then {fc.pat_attr.iloc[1] / fc.pat_attr.iloc[0] - 1:.0%} "
+                f"FY27 ({g27:+.0%}), then {fc.pat_attr.iloc[1] / fc.pat_attr.iloc[0] - 1:.0%} "
                 f"growth in FY28.",
                 f"<b>HOLD, target Rs {tp['tp']:,.0f}.</b> Sum of the parts at Mar-27: regulated equity valued by residual "
                 f"income at {so['pb']:.2f}x book (Rs {parts[0]:,.0f} cr), equity in regulated CWIP at book "
@@ -93,13 +92,14 @@ def narrative(t: str) -> dict:
                 f"The model adds ~{fc.re_mw.iloc[0] / 1000:.1f} GW of RE in FY27 and compounds EBITDA at {cagr:.0%} a year "
                 "to FY36.",
                 f"<b>The stock prices in more than the plan delivers.</b> At Rs {mkt.price:,.0f} Tata Power trades on "
-                f"14.8x FY26A EV/EBITDA and 30x trailing earnings. Solving the DCF for today's price gives a "
-                f"{implied_wacc(t):.1%} WACC against {tp['wacc']:.1%} on a 1.07 Blume-adjusted beta. Consensus expects "
-                f"~24% profit growth in FY27; management described Q1FY27 as about 6%, and we forecast {g27:+.0%}.",
+                f"{cp.loc[t, 'ev_ebitda']:.1f}x FY26A EV/EBITDA and {cp.loc[t, 'pe']:.0f}x trailing earnings. Solving the DCF "
+                f"for today's price gives a {implied_wacc(t):.1%} WACC against {tp['wacc']:.1%} on a "
+                f"{wacc_inputs(t)['beta']:.2f} Blume-adjusted beta. Management described Q1FY27 profit growth as about 6%; "
+                f"we forecast {g27:+.0%} for FY27 as interest and depreciation step up with the build-out.",
                 f"<b>SELL, target Rs {tp['tp']:,.0f}</b>: 50% DCF rolled forward 12 months (Rs {tp['dcf_12m']:,.0f}) and "
                 f"50% peer EV/EBITDA of {tp['multiple']:.1f}x on FY27E (Rs {tp['relative']:,.0f}). This sits at the low end "
-                "of broker targets (Rs 310-485, Investing.com). The call rests on the cost of equity; see the "
-                "sensitivity table.",
+                "of broker targets dated before 14-Aug (Rs 300-485, average Rs 394). The call rests on the cost of "
+                "equity; see the sensitivity table.",
             ],
             "risks": ["Upside: rooftop, EPC and manufacturing earnings grow faster than the 4% core drift.",
                       "Associates (coal, Tata Projects) are not modelled separately.",
@@ -114,9 +114,10 @@ def narrative(t: str) -> dict:
             f"<b>Earnings lag the balance sheet.</b> FY27E EBITDA rises to Rs {fc.ebitda.iloc[0]:,.0f} cr "
             f"({fc.ebitda.iloc[0] / b.operating_profit - 1:+.0%}) as FY26 acquisitions and additions annualise, but interest "
             f"and depreciation follow and FY26 had a tax credit: attributable PAT of Rs {fc.pat_attr.iloc[0]:,.0f} cr "
-            f"({g27:+.0%}; consensus +11%), in line with Q1FY27's Rs 533 cr.",
-            f"<b>HOLD, target Rs {tp['tp']:,.0f}</b>: 12-month DCF Rs {tp['dcf_12m']:,.0f} and {tp['multiple']:.1f}x FY27E "
-            f"EV/EBITDA Rs {tp['relative']:,.0f}. Net debt/EBITDA peaks at {nd.max():.1f}x in FY27 and falls below "
+            f"({g27:+.0%}), in line with Q1FY27's Rs 533 cr.",
+            f"<b>HOLD, target Rs {tp['tp']:,.0f} ({tp['upside']:+.1%}, just inside the -10% SELL line)</b>: 12-month DCF "
+            f"Rs {tp['dcf_12m']:,.0f} and {tp['multiple']:.1f}x FY27E EV/EBITDA Rs {tp['relative']:,.0f}. The stock's "
+            f"run to Rs {mkt.price:,.0f} leaves little room. Net debt/EBITDA peaks at {nd.max():.1f}x in FY27 and falls below "
             f"{nd.iloc[-1]:.0f}x by FY36; the re-rating case needs that de-levering in reported numbers.",
         ],
         "risks": ["Merchant exposure on the thermal fleet and hydrology on the hydro assets.",
@@ -174,7 +175,7 @@ def summary_table():
              "Mkt-implied\nWACC", "Consensus\ntarget"]]
     for t in COVERAGE:
         tp = target_price(t)
-        c = cons[(cons.ticker == t) & (cons.metric == "consensus_tp") & (cons.source == "Trendlyne")].value
+        c = cons[(cons.ticker == t) & (cons.metric == "consensus_tp")].value
         rows.append([COVERAGE[t], tp["rating"], _fmt(tp["price"]), _fmt(tp["tp"]), _fmt(tp["upside"], "pct"),
                      "SOTP" if tp["method"] == "SOTP" else "Blend", _fmt(tp["dcf_12m"]), _fmt(tp["relative"]),
                      _fmt(implied_wacc(t), "pct"), _fmt(float(c.iloc[0])) if len(c) else "-"])
@@ -331,7 +332,7 @@ def build(author: str = "Atharva Akhanzode") -> str:
           Paragraph("Initiation of coverage: the build-out is financed, the returns are not all priced the same",
                     S["sub"]),
           Spacer(1, 3),
-          Paragraph(f"{author} | Prices as of {mkt.price_date} | Report date {date.today():%d %b %Y}", S["small"]),
+          Paragraph(f"{author} | Data as of {pd.Timestamp(mkt.price_date):%d %b %Y}", S["small"]),
           Spacer(1, 8), summary_table(), Spacer(1, 8),
           Paragraph("Investment summary", S["h1"]),
           Paragraph("India's power sector is in its largest investment cycle in a decade. Listed generators and "
@@ -357,7 +358,7 @@ def build(author: str = "Atharva Akhanzode") -> str:
                      "Third, the market does not price these assets uniformly: hydro and pure renewables trade at "
                      "16-32x EBITDA, integrated thermal-led names at 10-15x.", S["body"]),
            _img(CH / "comps_scatter.png", 165 * mm), Spacer(1, 4),
-           Paragraph("Listed power comparables (FY26A, prices 25-Sep-2026)", S["h2"]), comps_table(),
+           Paragraph(f"Listed power comparables (FY26A, prices {mkt.price_date})", S["h2"]), comps_table(),
            PageBreak(),
            Paragraph("Carbon exposure from BRSR filings", S["h1"]),
            Paragraph("We compute scope 1+2 emissions per rupee crore of revenue from SEBI's mandatory BRSR "
@@ -374,17 +375,19 @@ def build(author: str = "Atharva Akhanzode") -> str:
     el += [Paragraph("Methodology and sources", S["h1"])]
     method = [
         "<b>Financials:</b> consolidated annual statements FY14-FY26 (Screener export, cross-checked line by line "
-        "against screener.in on 25-Sep-2026; FY26 revenue, EBITDA, PAT and borrowings match exactly).",
+        "against screener.in; FY26 revenue, EBITDA, PAT and borrowings match exactly).",
         "<b>Guidance:</b> 23 earnings-call transcripts (Q2FY25-Q1FY27) downloaded from NSE corporate filings. A rule-"
         "based extractor keeps every sentence pairing a forward-looking cue with a figure and unit; each capex "
         "input in the model cites the call and page it came from.",
         "<b>Model:</b> Excel workbook per company with live formulas (inputs in blue). A test suite recalculates "
         "the workbook with the <i>formulas</i> package and checks WACC, DCF, peer value, target and rating "
         "against the Python engine.",
-        "<b>Cost of capital:</b> 10Y G-sec 7.11% (Trading Economics, 25-Sep-2026) less Damodaran's 1.87% India "
+        "<b>Cost of capital:</b> 10Y G-sec 6.76% (close 14-Aug-2026, Investing.com) less Damodaran's 1.87% India "
         "default spread; total ERP 7.08% (Damodaran, Jan-2026); Blume-adjusted 2-year weekly betas vs Nifty 50.",
-        "<b>Consensus:</b> Trendlyne consensus pages and Investing.com analyst tables, 25-Sep-2026.",
-        "<b>Not used:</b> Seeking Alpha, Koyfin and full Trendlyne estimate tables require paid logins.",
+        "<b>Consensus:</b> average of the latest broker targets dated on or before 14-Aug-2026 (Investing.com; "
+        "8 brokers each for NTPC and Tata Power) and Yahoo Finance's 21-Jul-2026 average for JSW Energy.",
+        "<b>Cut-off:</b> all market data, consensus and transcripts are as of 14-Aug-2026 (last call used: "
+        "NTPC Q1FY27, filed 2-Aug-2026).",
     ]
     el += [Paragraph(m, S["bullet"], bulletText="•") for m in method]
     el += [Spacer(1, 8), Paragraph(

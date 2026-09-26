@@ -1,15 +1,7 @@
 ticker,source,metric,value,as_of,url,note
-NTPC,Trendlyne,consensus_tp,430,2026-09-25,https://trendlyne.com/equity/consensus-estimates/959/NTPC/ntpc-ltd/,28 analysts
-NTPC,Trendlyne,fy27_revenue_growth,0.122,2026-09-25,https://trendlyne.com/equity/consensus-estimates/959/NTPC/ntpc-ltd/,
-NTPC,Trendlyne,fy27_profit_growth,-0.075,2026-09-25,https://trendlyne.com/equity/consensus-estimates/959/NTPC/ntpc-ltd/,
-NTPC,Investing.com,consensus_tp,429.57,2026-09-25,https://in.investing.com/equities/ntpc-consensus-estimates,28 analysts; 27 Buy 1 Hold; low 355 high 485
-TATAPOWER,Trendlyne,consensus_tp,414,2026-09-25,https://trendlyne.com/equity/consensus-estimates/1364/TATAPOWER/tata-power-company-ltd/,23 analysts
-TATAPOWER,Trendlyne,fy27_revenue_growth,0.156,2026-09-25,https://trendlyne.com/equity/consensus-estimates/1364/TATAPOWER/tata-power-company-ltd/,
-TATAPOWER,Trendlyne,fy27_profit_growth,0.24,2026-09-25,https://trendlyne.com/equity/consensus-estimates/1364/TATAPOWER/tata-power-company-ltd/,headline truncated at 24.x%
-TATAPOWER,Investing.com,broker_range,310-485,2026-09-25,https://in.investing.com/equities/tata-power-company-consensus-estimates,Kotak Sell 310; BNP Hold 395; PL Hold 400; Bernstein Buy 430; ICICI Sec Buy 485
-JSWENERGY,Trendlyne,consensus_tp,616,2026-09-25,https://trendlyne.com/equity/consensus-estimates/697/JSWENERGY/jsw-energy-ltd/,21 analysts
-JSWENERGY,Trendlyne,fy27_revenue_growth,0.20,2026-09-25,https://trendlyne.com/equity/consensus-estimates/697/JSWENERGY/jsw-energy-ltd/,
-JSWENERGY,Trendlyne,fy27_profit_growth,0.113,2026-09-25,https://trendlyne.com/equity/consensus-estimates/697/JSWENERGY/jsw-energy-ltd/,
-ALL,Screener.in,fy26_actuals_match,1,2026-09-25,https://www.screener.in/company/NTPC/consolidated/,FY26 sales/EBITDA/PAT/debt match the local dataset exactly for NTPC TATAPOWER JSWENERGY
-ALL,Trading Economics,gsec_10y,0.0711,2026-09-25,https://tradingeconomics.com/india/government-bond-yield,
+NTPC,Investing.com,consensus_tp,446.6,2026-08-14,https://in.investing.com/equities/ntpc-consensus-estimates,"Average of latest targets from 8 brokers dated on or before 14-Aug-2026: Kotak 365 (28-Jul), Bernstein 450, Macquarie 480, Prabhudas Lilladher 450, JPMorgan 468, UBS 490, Axis 411, CLSA 459"
+TATAPOWER,Investing.com,consensus_tp,394.4,2026-08-14,https://in.investing.com/equities/tata-power-company-consensus-estimates,"Average of latest targets from 8 brokers dated on or before 14-Aug-2026: Bernstein 430, Prabhudas Lilladher 400, Kotak 310, ICICI Securities 485, JPMorgan 423, BofA 417, Goldman Sachs 300, Ambit 390; range 300-485"
+JSWENERGY,Yahoo Finance,consensus_tp,619,2026-07-21,https://finance.yahoo.com/,"Average analyst target reported 21-Jul-2026; high 745, low 455"
+ALL,Screener.in,fy26_actuals_match,1,,https://www.screener.in/company/NTPC/consolidated/,FY26 sales/EBITDA/PAT/debt match the local dataset exactly for NTPC TATAPOWER JSWENERGY
+ALL,Investing.com,gsec_10y,0.06762,2026-08-14,https://in.investing.com/rates-bonds/india-10-year-bond-yield-historical-data,
 ALL,Damodaran (NYU Stern),india_total_erp,0.0708,2026-01-05,https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html,Baa3; default spread 1.87%

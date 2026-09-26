@@ -74,11 +74,11 @@ def build(ticker: str) -> str:
     inp.write(0, 0, f"{COVERAGE[ticker]} - inputs (Rs crore)", F["title"])
     R_ = a["rationale"]
     scalars = [
-        ("gsec", "India 10Y G-sec yield", MARKET["gsec_10y"], "in_pct", "Trading Economics, 25-Sep-2026"),
+        ("gsec", "India 10Y G-sec yield", MARKET["gsec_10y"], "in_pct", "Investing.com historical close, 14-Aug-2026"),
         ("ds", "Sovereign default spread", MARKET["default_spread"], "in_pct", "Damodaran, Jan-2026 (Baa3)"),
         ("erp", "Equity risk premium (India, total)", MARKET["erp"], "in_pct", "Damodaran, Jan-2026"),
         ("tax", "Tax rate", MARKET["tax"], "in_pct", "New corporate regime, 25.17% rounded"),
-        ("stub", "FY27 fraction remaining", MARKET["stub"], "in_dec", "Valuation date 25-Sep-2026"),
+        ("stub", "FY27 fraction remaining", MARKET["stub"], "in_dec", "Valuation date 14-Aug-2026"),
         ("w_dcf", "Weight on 12m DCF in target (non-regulated)", MARKET["dcf_weight"], "in_pct", "Balance on FY27E EV/EBITDA"),
         ("min_cash", "Incremental cash floor", MARKET["min_cash"], "in_num", "Shortfalls drawn on a revolver"),
         ("beta_raw", "Raw beta (2y weekly vs Nifty 50)", mkt.beta_2y_weekly, "in_dec", "Computed from NSE prices"),

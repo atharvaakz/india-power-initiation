@@ -14,15 +14,15 @@ Years run FY27E..FY36E.
 """
 
 MARKET = {
-    # India 10Y G-sec, 25-Sep-2026 (Trading Economics); Damodaran Jan-2026 India default
+    # India 10Y G-sec close 14-Aug-2026 (Investing.com historical data); Damodaran Jan-2026 India default
     # spread 1.87% and total ERP 7.08%. Stripping the default spread from the G-sec avoids
     # counting country risk twice.
-    "gsec_10y": 0.0711,
+    "gsec_10y": 0.06762,
     "default_spread": 0.0187,
     "erp": 0.0708,
     "tax": 0.25,
-    "valuation_date": "2026-09-25",
-    "stub": 0.51,          # fraction of FY27 remaining after the valuation date
+    "valuation_date": "2026-08-14",
+    "stub": 229 / 365,     # fraction of FY27 remaining after the valuation date (14-Aug-26 to 31-Mar-27)
     "dcf_weight": 0.5,     # Tata Power / JSW: 12-month target = 50% DCF + 50% FY27E EV/EBITDA
     "min_cash": 0.0,       # incremental cash floor; shortfalls are drawn on a revolver
     "holdco_discount": 0.20,
@@ -78,8 +78,6 @@ COMPANIES = {
                     "distribution and rooftop/EPC. Non-RE assets commissioned earn 12% (FY19-26: 12.2%).",
             "renewables": "Rs 6 cr/MW for hybrid/FDRE-heavy additions (Rs 12-15k cr for ~2 GW a year, "
                           "Q4FY26 call), CUF 27%, Rs 3.2/kWh, 88% EBITDA margin. Model adds ~1.4 GW in FY27.",
-            "consensus": "Consensus FY27 PAT growth ~24% (Trendlyne) vs management's 'about 6%' pace in "
-                         "Q1FY27.",
             "valuation": "12-month target: 50% DCF rolled forward at Ke, 50% peer EV/EBITDA on FY27E.",
         },
         "regulated": False, "jv_profit0": 0, "jv_growth": 0.0,

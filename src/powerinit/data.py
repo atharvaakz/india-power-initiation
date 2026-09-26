@@ -7,12 +7,10 @@ esg.csv           scope 1+2 emissions and carbon intensity from BRSR filings, wi
 Only this module touches the raw research workspace or the network; everything
 downstream runs off the processed CSVs, which are committed.
 """
-from datetime import date
-
 import numpy as np
 import pandas as pd
 
-from .config import BASE_FY, MASTER_PANEL, PROCESSED, SCREENER_DTA, UNIVERSE
+from .config import ASOF, BASE_FY, MASTER_PANEL, PROCESSED, SCREENER_DTA, UNIVERSE
 
 CR = 1e7  # rupees per crore
 
@@ -55,12 +53,14 @@ def _pick(frame: pd.DataFrame, rows: list[str]) -> float:
 def build_market() -> pd.DataFrame:
     import yfinance as yf
 
-    nifty = yf.Ticker("^NSEI").history(period="3y")["Close"]
+    end = (pd.Timestamp(ASOF) + pd.Timedelta(days=1)).date().isoformat()
+    start = (pd.Timestamp(ASOF) - pd.Timedelta(days=3 * 365)).date().isoformat()
+    nifty = yf.Ticker("^NSEI").history(start=start, end=end)["Close"]
     nifty.index = nifty.index.tz_localize(None)
     rows = []
     for t in UNIVERSE:
         tk = yf.Ticker(f"{t}.NS")
-        h = tk.history(period="3y")["Close"]
+        h = tk.history(start=start, end=end)["Close"]
         h.index = h.index.tz_localize(None)
         bs = tk.balance_sheet
         rows.append({
@@ -78,11 +78,10 @@ def build_market() -> pd.DataFrame:
     mk = pd.DataFrame(rows)
     # Listed subsidiaries valued at market in the sum of the parts.
     ng = yf.Ticker("NTPCGREEN.NS")
-    ngp = ng.history(period="5d")["Close"]
+    ngp = ng.history(start=start, end=end)["Close"]
     mk["listed_sub_mcap_cr"] = 0.0
     mk.loc[mk.ticker == "NTPC", "listed_sub_mcap_cr"] = float(ngp.iloc[-1]) * ng.fast_info["shares"] / CR
     mk["mcap_cr"] = mk.price * mk.shares_cr
-    mk.attrs["built"] = date.today().isoformat()
     mk.to_csv(PROCESSED / "market.csv", index=False)
     return mk
 

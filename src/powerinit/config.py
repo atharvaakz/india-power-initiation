@@ -40,6 +40,9 @@ UNIVERSE = {
     "PTC": ("PTC India", "Power trading"),
 }
 
+# Data cut-off: every market-dated input (prices, betas, yields, consensus) is as of this close.
+ASOF = "2026-08-14"
+
 # Fiscal-year convention: the source data labels FY2025-26 (ended Mar-2026) as 2025.
 BASE_FY = 2025          # last reported year = FY26A
 N_FORECAST = 10         # FY27E .. FY36E
