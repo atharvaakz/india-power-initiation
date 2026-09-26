@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+# Transcript PDFs are public NSE filings; re-download with `python -m powerinit transcripts`.
+data/transcripts/*.pdf

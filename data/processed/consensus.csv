@@ -1,0 +1,15 @@
+ticker,source,metric,value,as_of,url,note
+NTPC,Trendlyne,consensus_tp,430,2026-09-25,https://trendlyne.com/equity/consensus-estimates/959/NTPC/ntpc-ltd/,28 analysts
+NTPC,Trendlyne,fy27_revenue_growth,0.122,2026-09-25,https://trendlyne.com/equity/consensus-estimates/959/NTPC/ntpc-ltd/,
+NTPC,Trendlyne,fy27_profit_growth,-0.075,2026-09-25,https://trendlyne.com/equity/consensus-estimates/959/NTPC/ntpc-ltd/,
+NTPC,Investing.com,consensus_tp,429.57,2026-09-25,https://in.investing.com/equities/ntpc-consensus-estimates,28 analysts; 27 Buy 1 Hold; low 355 high 485
+TATAPOWER,Trendlyne,consensus_tp,414,2026-09-25,https://trendlyne.com/equity/consensus-estimates/1364/TATAPOWER/tata-power-company-ltd/,23 analysts
+TATAPOWER,Trendlyne,fy27_revenue_growth,0.156,2026-09-25,https://trendlyne.com/equity/consensus-estimates/1364/TATAPOWER/tata-power-company-ltd/,
+TATAPOWER,Trendlyne,fy27_profit_growth,0.24,2026-09-25,https://trendlyne.com/equity/consensus-estimates/1364/TATAPOWER/tata-power-company-ltd/,headline truncated at 24.x%
+TATAPOWER,Investing.com,broker_range,310-485,2026-09-25,https://in.investing.com/equities/tata-power-company-consensus-estimates,Kotak Sell 310; BNP Hold 395; PL Hold 400; Bernstein Buy 430; ICICI Sec Buy 485
+JSWENERGY,Trendlyne,consensus_tp,616,2026-09-25,https://trendlyne.com/equity/consensus-estimates/697/JSWENERGY/jsw-energy-ltd/,21 analysts
+JSWENERGY,Trendlyne,fy27_revenue_growth,0.20,2026-09-25,https://trendlyne.com/equity/consensus-estimates/697/JSWENERGY/jsw-energy-ltd/,
+JSWENERGY,Trendlyne,fy27_profit_growth,0.113,2026-09-25,https://trendlyne.com/equity/consensus-estimates/697/JSWENERGY/jsw-energy-ltd/,
+ALL,Screener.in,fy26_actuals_match,1,2026-09-25,https://www.screener.in/company/NTPC/consolidated/,FY26 sales/EBITDA/PAT/debt match the local dataset exactly for NTPC TATAPOWER JSWENERGY
+ALL,Trading Economics,gsec_10y,0.0711,2026-09-25,https://tradingeconomics.com/india/government-bond-yield,
+ALL,Damodaran (NYU Stern),india_total_erp,0.0708,2026-01-05,https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html,Baa3; default spread 1.87%
