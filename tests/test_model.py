@@ -10,8 +10,9 @@ import formulas
 import openpyxl
 import pytest
 
+from powerinit.assumptions import COMPANIES, MARKET
 from powerinit.config import COVERAGE
-from powerinit.forecast import dcf, project, target_price
+from powerinit.forecast import base_state, dcf, project, sotp, target_price
 from powerinit.model_excel import build
 
 
@@ -41,9 +42,25 @@ def test_excel_matches_python(case):
     tp = target_price(t)
     assert named("wacc") == pytest.approx(tp["wacc"], rel=1e-9)
     assert named("out_dcf_ps") == pytest.approx(tp["dcf"], rel=1e-6)
+    assert named("out_dcf_12m") == pytest.approx(tp["dcf_12m"], rel=1e-6)
     assert named("out_rel_ps") == pytest.approx(tp["relative"], rel=1e-6)
+    if COMPANIES[t]["regulated"]:
+        assert named("out_sotp_ps") == pytest.approx(sotp(t)["per_share"], rel=1e-6)
     assert named("out_tp") == pytest.approx(tp["tp"], rel=1e-6)
     assert named("out_rating") == tp["rating"]
+
+
+def test_cash_never_below_floor(case):
+    t, _ = case
+    fc = project(t)
+    assert (fc.cash >= MARKET["min_cash"] - 1e-9).all()
+    assert (fc.revolver >= -1e-9).all()
+
+
+def test_capacity_build_matches_guidance():
+    """At guided capex the model should commission roughly what management guided for FY27."""
+    assert 6000 < project("NTPC").re_mw.iloc[0] - base_state("NTPC")["mw"] < 8500          # 7-8 GW RE guided
+    assert 2400 < project("JSWENERGY").re_mw.iloc[0] - base_state("JSWENERGY")["mw"] < 3300  # ~3 GW guided
 
 
 def test_terminal_value_is_bounded(case):

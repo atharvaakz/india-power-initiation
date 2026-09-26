@@ -17,7 +17,8 @@ from reportlab.platypus import (Image, KeepTogether, PageBreak, Paragraph, Simpl
 from .assumptions import COMPANIES, MARKET
 from .charts import CH, all_charts
 from .config import BASE_FY, COVERAGE, OUTPUTS, PROCESSED, fy_label
-from .forecast import implied_wacc, load, project, sensitivity, target_price, wacc_inputs
+from .forecast import (base_state, implied_roe, implied_wacc, load, project, sensitivity, sotp,
+                       target_price, wacc_inputs)
 
 INK = colors.HexColor("#1B2A3A")
 MUTED = colors.HexColor("#6B7785")
@@ -44,65 +45,84 @@ S = {
     "cell": ParagraphStyle("cell", fontName="Helvetica", fontSize=7.6, leading=9.4, textColor=INK),
 }
 
-NARRATIVE = {
-    "NTPC": {
-        "headline": "The regulated compounder is priced like it has stopped compounding",
-        "thesis": [
-            "<b>Capex is doubling and most of it earns a regulated return.</b> Group capex was Rs 49,068 cr in "
-            "FY26; management guides Rs 1,08,000 cr for FY27 and Rs 5,97,000 cr over FY28-32 on the way to "
-            "150 GW by FY32. Even at 70% delivery, commissioned assets grow ~13% a year, and regulated "
-            "projects earn a 15.5% post-tax return on equity once commercial.",
-            "<b>FY27 profit dips on a tax base effect, not operations.</b> FY26 net profit (Rs 27,546 cr) "
-            "benefited from a negative effective tax rate. On a normalised 25% rate we forecast Rs 23,810 cr "
-            "in FY27, then 16% annual growth; consensus also expects a 7.5% FY27 decline (Trendlyne).",
-            "<b>Valuation leaves room.</b> At 10.6x FY26A EV/EBITDA NTPC trades below its PSU peer median "
-            "(14.2x) despite the largest RE pipeline in the country. The market price implies an 8.8% WACC, "
-            "close to our 8.7%, so the upside comes from growth being underpriced rather than a cheaper "
-            "discount rate.",
-        ],
-        "risks": ["Execution slippage beyond the 30% haircut (transmission connectivity gated FY26 RE adds).",
-                  "Coal-linked thermal additions (~16.5 GW under construction) lock in carbon exposure; "
-                  "carbon intensity of ~1,650 tCO2e per Rs cr is among the highest in the universe.",
-                  "Leverage stays near 4-5x net debt/EBITDA through FY30 on our numbers."],
-    },
-    "TATAPOWER": {
-        "headline": "Good businesses, but the price already assumes a cheap cost of capital",
-        "thesis": [
-            "<b>The growth story is real.</b> Management has Rs 25,000 cr of FY27 capex lined up (half RE, "
-            "half FGD and T&amp;D), Mumbai transmission adds ~Rs 1,000 cr a year, and rooftop solar targets "
-            "Rs 30,000 cr of revenue by 2030. We model EBITDA compounding at 12% to FY33.",
-            "<b>But the stock prices in more than the plan delivers.</b> At Rs 368, Tata Power trades on "
-            "14.8x FY26A EV/EBITDA and 30x trailing earnings. Solving our DCF for today's price gives an "
-            "implied WACC of 8.6%, against 10.2% on a 1.07 Blume-adjusted beta. Consensus expects ~24% "
-            "profit growth in FY27; management described Q1FY27 reported PAT growth of about 6%.",
-            "<b>We initiate with SELL and a Rs 275 target</b> (50% DCF at Rs 175, 50% peer multiple at "
-            "Rs 375). This is below every broker target we found (range Rs 310-485, Investing.com), so the "
-            "call rests on one debatable input: the cost of equity. At a 9.2% WACC the DCF alone reaches "
-            "Rs 286.",
-        ],
-        "risks": ["Upside risk: faster rooftop and manufacturing earnings not tied to capex, which our "
-                  "asset-yield model only captures through a 4% drift.",
-                  "JV earnings (coal, Tata Projects) sit below EBITDA; we value them at book.",
-                  "A lower market risk premium for Indian utilities would close most of the gap."],
-    },
-    "JSWENERGY": {
+def narrative(t: str) -> dict:
+    """Company thesis, with every number pulled from the model at build time."""
+    tp = target_price(t)
+    fc = project(t)
+    hist, mkt = load(t)
+    b = hist.loc[BASE_FY]
+    nd = (fc.borrowings + fc.revolver - fc.cash) / fc.ebitda
+    g27 = fc.pat_attr.iloc[0] / b.net_profit - 1
+    cagr = (fc.ebitda.iloc[-1] / b.operating_profit) ** (1 / len(fc)) - 1
+    if t == "NTPC":
+        so = sotp(t)
+        parts = list(so["parts"].values())
+        roes = {r: sotp(t, r)["per_share"] for r in (0.155, 0.17, 0.18)}
+        return {
+            "headline": "A fair price for the regulated compounder; the upside needs returns above the rulebook",
+            "thesis": [
+                f"<b>The build-out is real and mostly regulated.</b> Group capex was Rs 49,068 cr in FY26; management "
+                f"guides Rs 1,08,000 cr for FY27 and Rs 5,97,000 cr over FY28-32. At 70% delivery the model commissions "
+                f"~{(fc.re_mw.iloc[0] - COMPANIES[t]['re_mw0']) / 1000:.1f} GW of renewables in FY27 (7-8 GW guided) and "
+                f"reaches {fc.re_mw.iloc[5] / 1000:.0f} GW by FY32 against the 60 GW target, while regulated equity grows "
+                f"from Rs {COMPANIES[t]['regeq0']:,} cr to Rs {fc.regulated_equity.iloc[-1]:,.0f} cr by FY36.",
+                f"<b>FY27 profit falls on tax, not operations.</b> FY26 net profit (Rs {b.net_profit:,.0f} cr) included a "
+                f"tax credit (reported effective rate -12%, Screener). At a normalised 25% we forecast Rs {fc.pat_attr.iloc[0]:,.0f} cr attributable in "
+                f"FY27 ({g27:+.0%}; consensus -7.5%, Trendlyne), then {fc.pat_attr.iloc[1] / fc.pat_attr.iloc[0] - 1:.0%} "
+                f"growth in FY28.",
+                f"<b>HOLD, target Rs {tp['tp']:,.0f}.</b> Sum of the parts at Mar-27: regulated equity valued by residual "
+                f"income at {so['pb']:.2f}x book (Rs {parts[0]:,.0f} cr), equity in regulated CWIP at book "
+                f"(Rs {parts[1]:,.0f} cr) and the 89% NTPC Green stake at market less 20% (Rs {parts[2]:,.0f} cr). "
+                f"Today's price implies NTPC earns {implied_roe(t):.1%} on regulated equity, against 15.5% normative plus "
+                f"~0.4 points of net operational gains in FY26. Each extra point of earned RoE is worth ~Rs "
+                f"{(roes[0.17] - roes[0.155]) / 1.5:,.0f} a share: 17% gives Rs {roes[0.17]:,.0f}, 18% gives "
+                f"Rs {roes[0.18]:,.0f}.",
+            ],
+            "risks": [f"Upside: sustained incentives and efficiency gains lift earned RoE toward 17-18%.",
+                      "Execution slippage beyond the 30% haircut; FY26 RE adds were gated by transmission connectivity.",
+                      "Coal additions (~16.5 GW under construction) keep carbon intensity near 1,650 tCO2e per Rs cr.",
+                      f"Leverage: net debt/EBITDA peaks at {nd.max():.1f}x and the model draws up to "
+                      f"Rs {fc.revolver.max():,.0f} cr of short-term funding before FY32."],
+        }
+    if t == "TATAPOWER":
+        return {
+            "headline": "Good businesses, but the price already assumes a cheap cost of capital",
+            "thesis": [
+                "<b>The growth story is real.</b> Rs 25,000 cr of FY27 capex is lined up (half RE, half FGD and T&amp;D), "
+                "Mumbai transmission adds ~Rs 1,000 cr a year and rooftop solar targets Rs 30,000 cr of revenue by 2030. "
+                f"The model adds ~{fc.re_mw.iloc[0] / 1000:.1f} GW of RE in FY27 and compounds EBITDA at {cagr:.0%} a year "
+                "to FY36.",
+                f"<b>The stock prices in more than the plan delivers.</b> At Rs {mkt.price:,.0f} Tata Power trades on "
+                f"14.8x FY26A EV/EBITDA and 30x trailing earnings. Solving the DCF for today's price gives a "
+                f"{implied_wacc(t):.1%} WACC against {tp['wacc']:.1%} on a 1.07 Blume-adjusted beta. Consensus expects "
+                f"~24% profit growth in FY27; management described Q1FY27 as about 6%, and we forecast {g27:+.0%}.",
+                f"<b>SELL, target Rs {tp['tp']:,.0f}</b>: 50% DCF rolled forward 12 months (Rs {tp['dcf_12m']:,.0f}) and "
+                f"50% peer EV/EBITDA of {tp['multiple']:.1f}x on FY27E (Rs {tp['relative']:,.0f}). This sits at the low end "
+                "of broker targets (Rs 310-485, Investing.com). The call rests on the cost of equity; see the "
+                "sensitivity table.",
+            ],
+            "risks": ["Upside: rooftop, EPC and manufacturing earnings grow faster than the 4% core drift.",
+                      "Associates (coal, Tata Projects) are not modelled separately.",
+                      "A lower risk premium for Indian utilities would close most of the gap."],
+        }
+    return {
         "headline": "On track for 30 GW, and the market already knows",
         "thesis": [
-            "<b>Execution is the best in the group.</b> JSW guided 3 GW and Rs 20,000 cr of capex for FY27 "
-            "and had commissioned 1.1 GW by late July, with connectivity secured for the balance. Locked-in "
-            "capacity of 32.1 GW already covers the FY30 target of 30 GW.",
-            "<b>Earnings lag the balance sheet.</b> Acquisitions (O2 Power, KSK Mahanadi) lifted FY26 revenue "
-            "61% but also interest (Rs 5,816 cr vs Rs 2,269 cr). We forecast FY27 PAT of Rs 2,484 cr, below "
-            "consensus (+11%), in line with the Q1FY27 run-rate of about Rs 500 cr a quarter.",
-            "<b>HOLD, target Rs 530.</b> The DCF (Rs 430) and the growth-peer multiple (Rs 631) bracket the "
-            "price. Net debt/EBITDA peaks near 6.6x in FY27 before falling below 4x by FY33, so the re-rating "
-            "case needs the de-levering to show up in reported numbers first.",
+            "<b>Execution is the best in the group.</b> JSW guided 3 GW and Rs 20,000 cr of capex for FY27 and had "
+            f"commissioned 1.1 GW by late July; at guided capex the model adds ~{(fc.re_mw.iloc[0] - base_state(t)['mw']) / 1000:.1f} GW "
+            "of RE in FY27. Locked-in capacity of 32.1 GW already covers the FY30 target.",
+            f"<b>Earnings lag the balance sheet.</b> FY27E EBITDA rises to Rs {fc.ebitda.iloc[0]:,.0f} cr "
+            f"({fc.ebitda.iloc[0] / b.operating_profit - 1:+.0%}) as FY26 acquisitions and additions annualise, but interest "
+            f"and depreciation follow and FY26 had a tax credit: attributable PAT of Rs {fc.pat_attr.iloc[0]:,.0f} cr "
+            f"({g27:+.0%}; consensus +11%), in line with Q1FY27's Rs 533 cr.",
+            f"<b>HOLD, target Rs {tp['tp']:,.0f}</b>: 12-month DCF Rs {tp['dcf_12m']:,.0f} and {tp['multiple']:.1f}x FY27E "
+            f"EV/EBITDA Rs {tp['relative']:,.0f}. Net debt/EBITDA peaks at {nd.max():.1f}x in FY27 and falls below "
+            f"{nd.iloc[-1]:.0f}x by FY36; the re-rating case needs that de-levering in reported numbers.",
         ],
         "risks": ["Merchant exposure on the thermal fleet and hydrology on the hydro assets.",
                   "Battery and wind-blade manufacturing are early; external orders so far are small (Rs 440 cr).",
-                  "Weighted cost of debt of 8.36% leaves little room if rates stay near a 7.1% G-sec."],
-    },
-}
+                  "Weighted cost of debt of 8.36% leaves little room if the G-sec stays near 7.1%."],
+    }
 
 
 def _tbl(data, widths, header=True, zebra=True, align_right_from=1):
@@ -150,15 +170,15 @@ def _page(canvas, doc):
 
 def summary_table():
     cons = pd.read_csv(PROCESSED / "consensus.csv")
-    rows = [["Company", "Rating", "CMP", "Target", "Upside", "DCF", "Peer val.", "WACC",
+    rows = [["Company", "Rating", "CMP", "Target", "Upside", "Method", "DCF\n12m", "EV/EBITDA\n12m",
              "Mkt-implied\nWACC", "Consensus\ntarget"]]
     for t in COVERAGE:
         tp = target_price(t)
         c = cons[(cons.ticker == t) & (cons.metric == "consensus_tp") & (cons.source == "Trendlyne")].value
         rows.append([COVERAGE[t], tp["rating"], _fmt(tp["price"]), _fmt(tp["tp"]), _fmt(tp["upside"], "pct"),
-                     _fmt(tp["dcf"]), _fmt(tp["relative"]), _fmt(tp["wacc"], "pct"),
+                     "SOTP" if tp["method"] == "SOTP" else "Blend", _fmt(tp["dcf_12m"]), _fmt(tp["relative"]),
                      _fmt(implied_wacc(t), "pct"), _fmt(float(c.iloc[0])) if len(c) else "-"])
-    t = _tbl(rows, [36 * mm, 13 * mm, 14 * mm, 14 * mm, 14 * mm, 14 * mm, 16 * mm, 14 * mm, 20 * mm, 19 * mm])
+    t = _tbl(rows, [36 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm, 14 * mm, 18 * mm, 19 * mm, 18 * mm])
     for i, r in enumerate(rows[1:], 1):
         t.setStyle(TableStyle([("TEXTCOLOR", (1, i), (1, i), RATING_COL[r[1]]),
                                ("FONT", (1, i), (1, i), "Helvetica-Bold", 7.6)]))
@@ -174,20 +194,24 @@ def forecast_table(ticker):
     def val(y, h_col, f_col):
         return hist.loc[y, h_col] if y <= BASE_FY else fc.loc[y, f_col]
     lines = [("Revenue", "sales", "sales"), ("EBITDA", "operating_profit", "ebitda"),
-             ("Net profit", "net_profit", "pat"), ("Capex", None, "capex"), ("Borrowings", "borrowings", "borrowings")]
+             ("  of which renewables", None, "re_ebitda"), ("Net profit to shareholders", "net_profit", "pat_attr"),
+             ("Capex", None, "capex"), ("Borrowings incl. revolver", "borrowings", "debt_all"),
+             ("Renewable capacity (MW)", None, "re_mw")]
+    fc["debt_all"] = fc.borrowings + fc.revolver
     data = [head]
     for lab, hc, fcol in lines:
         row = [lab]
         for y in yrs:
             if y <= BASE_FY and hc is None:
                 h = hist
-                v = h.fixed_assets.diff().loc[y] + h.depreciation.loc[y] + h.cwip.diff().loc[y]
+                v = (h.fixed_assets.diff().loc[y] + h.depreciation.loc[y] + h.cwip.diff().loc[y]
+                     if fcol == "capex" else float("nan"))
             else:
                 v = val(y, hc, fcol)
             row.append(_fmt(v))
         data.append(row)
-    eps = ["EPS (Rs)"] + [_fmt(val(y, "net_profit", "pat") / mkt.shares_cr, "dec") for y in yrs]
-    pe = ["P/E at CMP"] + [_fmt(mkt.price / (val(y, "net_profit", "pat") / mkt.shares_cr), "x") for y in yrs]
+    eps = ["EPS (Rs)"] + [_fmt(val(y, "net_profit", "pat_attr") / mkt.shares_cr, "dec") for y in yrs]
+    pe = ["P/E at CMP"] + [_fmt(mkt.price / (val(y, "net_profit", "pat_attr") / mkt.shares_cr), "x") for y in yrs]
     marg = ["EBITDA margin"] + [_fmt(val(y, "operating_profit", "ebitda") / val(y, "sales", "sales"), "pct") for y in yrs]
     data += [marg, eps, pe]
     return _tbl(data, [34 * mm] + [23 * mm] * len(yrs))
@@ -232,7 +256,7 @@ def quotes(ticker, n=4):
 
 def company_section(ticker):
     tp = target_price(ticker)
-    n = NARRATIVE[ticker]
+    n = narrative(ticker)
     col = RATING_COL[tp["rating"]]
     head = Table([[Paragraph(f"<b>{COVERAGE[ticker]}</b>", S["h1"]),
                    Paragraph(f"<font color='{col.hexval()}'><b>{tp['rating']}</b></font>  "
@@ -250,12 +274,7 @@ def company_section(ticker):
     side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
     el += [Paragraph("Cost of capital and DCF sensitivity (Rs per share, WACC rows x terminal growth)", S["h2"]),
            side, Spacer(1, 4),
-           Paragraph(f"Target = {MARKET['dcf_weight']:.0%} DCF (Rs {tp['dcf']:,.0f}) + "
-                     f"{1 - MARKET['dcf_weight']:.0%} peer EV/EBITDA at {tp['multiple']:.1f}x FY26A "
-                     f"(Rs {tp['relative']:,.0f}). Terminal value is {tp['tv_share']:.0%} of DCF enterprise "
-                     f"value because FCFF is negative during the build-out; the value-driver formula ties "
-                     f"terminal reinvestment to growth at a {COMPANIES[ticker]['ronic']:.1%} return on new capital.",
-                     S["body"]),
+           Paragraph(method_text(ticker, tp), S["body"]),
            Paragraph("Key assumptions", S["h2"])]
     el += [Paragraph(f"<b>{k.capitalize()}:</b> {_clean(v)}", S["bullet"], bulletText="•")
            for k, v in COMPANIES[ticker]["rationale"].items()]
@@ -264,6 +283,22 @@ def company_section(ticker):
     el += [KeepTogether([Paragraph("Earnings-call themes (automated transcript analysis)", S["h2"]),
                          _img(CH / f"{ticker}_themes.png", 140 * mm)]), PageBreak()]
     return el
+
+
+def method_text(ticker, tp):
+    if tp["method"] == "SOTP":
+        so = sotp(ticker)
+        return (f"Target = sum of the parts (Rs {tp['tp']:,.0f}): regulated equity by residual income at "
+                f"{so['pb']:.2f}x FY27E book, regulated CWIP equity at book, NTPC Green at market less a 20% holdco "
+                f"discount. Cross-checks: 12-month DCF Rs {tp['dcf_12m']:,.0f}, FY27E EV/EBITDA at {tp['multiple']:.1f}x "
+                f"Rs {tp['relative']:,.0f}. The DCF sits far below because FCFF stays negative through a decade of "
+                f"guided capex (terminal value {tp['tv_share']:.0%} of EV), and a WACC-based DCF ignores that the "
+                f"regulator guarantees a return on that capex; the SOTP prices that guarantee directly.")
+    return (f"Target = {MARKET['dcf_weight']:.0%} DCF rolled forward 12 months at the cost of equity "
+            f"(Rs {tp['dcf_12m']:,.0f}) + {1 - MARKET['dcf_weight']:.0%} peer EV/EBITDA of {tp['multiple']:.1f}x on "
+            f"FY27E EBITDA less FY27E net debt (Rs {tp['relative']:,.0f}). Terminal value is {tp['tv_share']:.0%} of "
+            f"DCF enterprise value; the value-driver formula ties terminal reinvestment to growth at a "
+            f"{COMPANIES[ticker]['ronic']:.1%} return on new capital.")
 
 
 def comps_table():
@@ -303,14 +338,16 @@ def build(author: str = "Atharva Akhanzode") -> str:
                     "utilities spent roughly Rs 2.2 lakh crore on assets in FY26, more than double FY23, and the "
                     "three companies we initiate on have guided to spend more in FY27. Peak demand touched 270 GW "
                     "in July 2026 (JSW Energy, Q1FY27 call), against the 250 GW record of May 2024.", S["body"]),
-          Paragraph("Our framework treats every rupee of capex as a claim on future EBITDA: assets commissioned "
-                    "out of capital work in progress earn an EBITDA yield calibrated on each company's FY19-26 "
-                    "history (12-16%), and capex starts from management guidance, haircut for execution. Valued "
-                    "on that basis, the three stocks separate clearly.", S["body"])]
+          Paragraph("Capex starts from management guidance, haircut for execution, and is turned into capacity. "
+                    "Renewables earn MW x utilisation x tariff; NTPC's regulated EBITDA scales with regulated "
+                    "equity, which grows by 30% of the regulated assets commissioned; Tata Power's and JSW's other "
+                    "assets earn a yield calibrated on FY19-26. At guided capex the model commissions roughly what "
+                    "each company has guided for FY27. On that basis none of the three is cheap: the market is "
+                    "already paying for the build-out.", S["body"])]
     for t in COVERAGE:
         tp = target_price(t)
         el.append(Paragraph(f"<b>{COVERAGE[t]} - {tp['rating']}, TP Rs {tp['tp']:,.0f} ({tp['upside']:+.0%}).</b> "
-                            f"{NARRATIVE[t]['headline']}.", S["bullet"], bulletText="•"))
+                            f"{narrative(t)['headline']}.", S["bullet"], bulletText="•"))
     el += [Spacer(1, 6), _img(CH / "sector_capex.png", 165 * mm), PageBreak(),
            Paragraph("Sector: capacity, capital and carbon", S["h1"]),
            Paragraph("Three facts frame the sector. First, the grid is short of firm capacity: the CEA projects an "

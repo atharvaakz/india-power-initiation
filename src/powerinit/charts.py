@@ -7,7 +7,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from .config import BASE_FY, COVERAGE, OUTPUTS, PROCESSED, UNIVERSE, fy_label  # noqa: E402
-from .forecast import load, project, sensitivity, target_price  # noqa: E402
+from .forecast import load, project, sensitivity, sotp, target_price  # noqa: E402
 
 CH = OUTPUTS / "charts"
 INK, MUTED, GRID = "#1B2A3A", "#6B7785", "#E3E7EC"
@@ -105,17 +105,17 @@ def earnings(ticker):
     fc = project(ticker)
     yrs_h = list(range(BASE_FY - 4, BASE_FY + 1))
     e = list(hist.loc[yrs_h, "operating_profit"]) + list(fc.ebitda)
-    p = list(hist.loc[yrs_h, "net_profit"]) + list(fc.pat)
+    p = list(hist.loc[yrs_h, "net_profit"]) + list(fc.pat_attr)
     labels = [fy_label(y) for y in yrs_h] + [fy_label(y, True) for y in fc.index]
     nd = list(hist.loc[yrs_h, "borrowings"] / hist.loc[yrs_h, "operating_profit"]) + \
-        list((fc.borrowings - fc.cash_build) / fc.ebitda)
+        list((fc.borrowings + fc.revolver - fc.cash) / fc.ebitda)
     fig, ax = plt.subplots(figsize=(6.4, 2.7))
     x = np.arange(len(labels))
     col = COVER_COL[ticker]
     ax.bar(x - 0.2, np.array(e) / 1e3, 0.4, color=col, label="EBITDA")
     ax.bar(x + 0.2, np.array(p) / 1e3, 0.4, color=ACCENT2 if ticker != "NTPC" else "#9BB8D6", label="Net profit")
     ax.axvspan(len(yrs_h) - 0.5, len(labels) - 0.5, color="#F3F5F8", zorder=0)
-    ax.set_xticks(x, labels, fontsize=7)
+    ax.set_xticks(x, labels, fontsize=6.5, rotation=45, ha="right")
     ax.set_ylabel("Rs '000 crore")
     ax2 = ax.twinx()
     ax2.plot(x, nd, color=WARN, lw=1.6, marker="o", ms=3, label="Net debt / EBITDA (rhs)")
@@ -127,7 +127,7 @@ def earnings(ticker):
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     ax.legend(h1 + h2, l1 + l2, frameon=False, fontsize=7.5, ncol=3, loc="upper left")
-    ax.set_title("Earnings and leverage, FY22A-FY33E (shaded = forecast)")
+    ax.set_title("Earnings and leverage, FY22A-FY36E (shaded = forecast)")
     return _save(fig, f"{ticker}_earnings")
 
 
@@ -139,8 +139,11 @@ def football(ticker):
     s = sensitivity(ticker)
     bars = [("52-week trading range", mkt.low_52w, mkt.high_52w, MUTED),
             ("DCF (WACC +/-1%, g 4-6%)", s.values.min(), s.values.max(), COVER_COL[ticker]),
-            ("Peer EV/EBITDA (+/-2x)", tp["relative"] * 0.85, tp["relative"] * 1.15, ACCENT2)]
-    fig, ax = plt.subplots(figsize=(6.4, 1.9))
+            ("FY27E EV/EBITDA (+/-15%)", tp["relative"] * 0.85, tp["relative"] * 1.15, ACCENT2)]
+    if tp["method"] == "SOTP":
+        lo, hi = sotp(ticker, 0.155)["per_share"], sotp(ticker, 0.18)["per_share"]
+        bars.insert(1, ("SOTP (earned RoE 15.5-18%)", lo, hi, WARN))
+    fig, ax = plt.subplots(figsize=(6.4, 2.2))
     for i, (lab, lo, hi, col) in enumerate(bars):
         ax.barh(i, hi - lo, left=lo, color=col, height=0.5, alpha=0.85)
         ax.text(hi, i, f"  {lo:,.0f} - {hi:,.0f}", va="center", fontsize=7, color=MUTED)

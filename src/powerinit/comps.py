@@ -34,7 +34,9 @@ def build() -> pd.DataFrame:
 PEER_SETS = {
     "NTPC": ["NTPC", "NHPC", "SJVN", "NLCINDIA", "POWERGRID"],           # PSU / regulated
     "TATAPOWER": ["TATAPOWER", "TORNTPOWER", "CESC", "JSWENERGY", "ADANIPOWER"],  # private integrated
-    "JSWENERGY": ["JSWENERGY", "TATAPOWER", "ADANIPOWER", "ADANIGREEN", "TORNTPOWER"],
+    # Adani Green (30x) is excluded: a pure RE developer's multiple prices development optionality
+    # that an integrated IPP's EBITDA base does not carry.
+    "JSWENERGY": ["JSWENERGY", "TATAPOWER", "ADANIPOWER", "TORNTPOWER", "NTPC"],
 }
 
 

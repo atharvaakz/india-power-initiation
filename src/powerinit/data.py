@@ -76,6 +76,11 @@ def build_market() -> pd.DataFrame:
             "low_52w": round(float(h.iloc[-252:].min()), 2),
         })
     mk = pd.DataFrame(rows)
+    # Listed subsidiaries valued at market in the sum of the parts.
+    ng = yf.Ticker("NTPCGREEN.NS")
+    ngp = ng.history(period="5d")["Close"]
+    mk["listed_sub_mcap_cr"] = 0.0
+    mk.loc[mk.ticker == "NTPC", "listed_sub_mcap_cr"] = float(ngp.iloc[-1]) * ng.fast_info["shares"] / CR
     mk["mcap_cr"] = mk.price * mk.shares_cr
     mk.attrs["built"] = date.today().isoformat()
     mk.to_csv(PROCESSED / "market.csv", index=False)
