@@ -58,8 +58,6 @@ PYTHONPATH=src python -m pytest -q          # Excel vs Python check
 
 ## Notes
 
-This repo was built with substantial help from an AI coding assistant (Claude) as a reference implementation. I plan to study and rebuild it myself.
-
 Known simplifications:
 - Minority share of profit is not split out of net profit.
 - JV holdings are valued at book.
